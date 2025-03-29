@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Kargo Oyunu</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #map { width: 100%; height: 100%; }
+    #startBtn {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      font-size: 18px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      z-index: 1000;
+    }
+    #scoreBox {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+      font-weight: bold;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="scoreBox">Score: 0</div>
+  <button id="startBtn" onclick="startNavigation()" disabled>Git</button>
+
+  <script>
+    let map, playerMarker, destinationMarker, routeLine;
+    let score = 0;
+    let destination = null;
+    let routeCoords = [];
+    let currentStep = 0;
+    const deliveryPoints = [];
+
+    // Google kırmızı pin ikonu
+    const redIcon = new L.Icon({
+      iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32]
+    });
+
+    function getRandomOffset(maxMeters) {
+      const metersPerDegree = 111320;
+      const offset = (Math.random() - 0.5) * 2 * (maxMeters / metersPerDegree);
+      return offset;
+    }
+
+    function generateDeliveryPoints(lat, lng) {
+      for (let i = 0; i < 5; i++) {
+        const offsetLat = getRandomOffset(5000);
+        const offsetLng = getRandomOffset(5000);
+        const pointLat = lat + offsetLat;
+        const pointLng = lng + offsetLng;
+
+        const marker = L.marker([pointLat, pointLng]).addTo(map).bindPopup("Teslimat Noktası");
+        marker.on('click', function () {
+          if (routeLine) map.removeLayer(routeLine);
+          destination = [pointLat, pointLng];
+          getRoute([lat, lng], destination);
+          document.getElementById("startBtn").disabled = false;
+        });
+
+        deliveryPoints.push(marker);
+      }
+    }
+
+    function getRoute(start, end) {
+      const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+          if (routeLine) map.removeLayer(routeLine);
+          routeLine = L.polyline(routeCoords, { color: 'blue' }).addTo(map);
+          map.fitBounds(routeLine.getBounds());
+          currentStep = 0;
+        });
+    }
+
+    function startNavigation() {
+      document.getElementById("startBtn").disabled = true;
+      const interval = setInterval(() => {
+        if (currentStep >= routeCoords.length) {
+          clearInterval(interval);
+          alert("Teslimat tamamlandı!");
+          score += 10;
+          document.getElementById("scoreBox").innerText = "Score: " + score;
+          if (destinationMarker) map.removeLayer(destinationMarker);
+          map.removeLayer(routeLine);
+          destination = null;
+          return;
+        }
+
+        const pos = routeCoords[currentStep];
+        playerMarker.setLatLng(pos);
+        map.panTo(pos);
+        currentStep++;
+      }, 1000); // her saniye adım (≈ 16.6 m/sn ≈ 60 km/h)
+    }
+
+    // Konumu al
+    navigator.geolocation.getCurrentPosition(successLocation, errorLocation, {
+      enableHighAccuracy: true
+    });
+
+    function successLocation(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      map = L.map('map').setView([lat, lng], 14);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+
+      playerMarker = L.marker([lat, lng], { icon: redIcon }).addTo(map).bindPopup("Başlangıç Konumu").openPopup();
+
+      generateDeliveryPoints(lat, lng);
+    }
+
+    function errorLocation() {
+      alert("Konum alınamadı!");
+    }
+  </script>
+</body>
+</html>
