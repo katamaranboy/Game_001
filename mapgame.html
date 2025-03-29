@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Map Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body style="margin:0;">
+  <div id="map" style="width:100%; height:100vh;"></div>
+  <script>
+    var map = L.map('map').setView([41.0082, 28.9784], 15); // Başlangıç konumu
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Oyuncu Marker'ı
+    var playerMarker = L.marker([41.0082, 28.9784]).addTo(map).bindPopup("Sen buradasın!");
+
+    // Görev Noktası
+    var taskMarker = L.marker([41.0095, 28.9790]).addTo(map).bindPopup("Görev Noktası: Tıkla!");
+
+    taskMarker.on('click', function () {
+      alert("Görev Başladı!");
+    });
+
+    // Oyuncu konumunu güncelleme fonksiyonu (örnek)
+    function updatePlayer(lat, lng) {
+      playerMarker.setLatLng([lat, lng]);
+      map.panTo([lat, lng]);
+    }
+  </script>
+</body>
+</html>
